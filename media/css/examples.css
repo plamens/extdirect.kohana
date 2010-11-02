@@ -1,0 +1,30 @@
+body {
+	font-family:helvetica,tahoma,verdana,sans-serif;
+	padding:20px;
+	padding-top:32px;
+	font-size:13px;
+	background-color:#fff !important;
+}
+p {
+	margin-bottom:15px;
+}
+strong {
+    font-weight: bold;
+}
+h1 {
+	font-size:large;
+	margin-bottom:20px;
+}
+h2 {
+	font-size:14px;
+	color:#333;
+	font-weight:bold;
+	margin:10px 0;
+}
+ol {
+    list-style-type: decimal;
+    list-style-position: inside;
+}
+ol li {
+    padding-bottom: 5px;
+}

@@ -1,0 +1,1 @@
+<p>The js is not minified so it is readable. See <a href="<?php echo URL::base().$media_route->uri(array('file' => 'js/direct-tree.js')); ?>">direct-tree.js</a>.</p>
