@@ -16,7 +16,19 @@ class Controller_Examples extends Controller_Template
     {
         parent::before();
         
-        if ($this->request->action === 'media')
+        // Get the current action
+        if (version_compare(Kohana::VERSION, '3.1', '<'))
+        {
+            // Kohaha 3.0.x request API
+            $media_action = $this->request->action === 'media';
+        }
+        else
+        {
+            // Kohaha 3.1.x request API
+            $media_action = $this->request->action() === 'media';
+        }   
+        
+        if ($media_action)
 		{
 			// Do not template media files
 			$this->auto_render = FALSE;
@@ -96,7 +108,17 @@ class Controller_Examples extends Controller_Template
 		if ($file = Kohana::find_file('media', $file, $ext))
 		{
 			// Send the file content as the response
-			$this->request->response = file_get_contents($file);
+            if (version_compare(Kohana::VERSION, '3.1', '<'))
+            {
+                // Kohaha 3.0.x request API
+                $this->request->response = file_get_contents($file);
+            }
+            else
+            {
+                // Kohaha 3.1.x request API
+                $this->response->body(file_get_contents($file));
+            }            
+			
 		}
 		else
 		{

@@ -90,11 +90,22 @@ class Controller_ExtDirect extends Controller
     // For the "Ext.Direct Generic Remoting" example so we can call a polling url within the module
     public function action_poll()
     {
-        $this->request->response = json_encode(array(
-                                       'type'=>'event',
-                                       'name'=>'message',
-                                       'data'=>'Successfully polled at: '. date('g:i:s a')
-                                   ));
+        $response = json_encode(array(
+           'type'=>'event',
+           'name'=>'message',
+           'data'=>'Successfully polled at: '. date('g:i:s a')
+        ));
+        
+        if (version_compare(Kohana::VERSION, '3.1', '<'))
+        {
+            // Kohaha 3.0.x request API
+            $this->request->response = $response;
+        }
+        else
+        {
+            // Kohaha 3.1.x request API
+            $this->response->body($response);
+        }
     }
 
 }
