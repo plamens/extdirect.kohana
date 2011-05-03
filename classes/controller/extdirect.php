@@ -1,111 +1,144 @@
-<?php defined('SYSPATH') or die('No direct script access.');
-/**
- * Kohana 3 Ext.Direct PHP
- * To quickly integrate Ext.Direct API calls within a Kohana 3 application
- * 
- * Ported from Ext.Direct PHP - Maintained by tommymaintz (Tommy Maintz)
- * http://extjs.com/forum/showthread.php?t=68186
- * 
- * @author     Fady Khalife
- */
-class Controller_ExtDirect extends Controller
-{
-    public $session; 
-    
-    public function before()
-    {
-        parent::before();
-        $this->auto_render = FALSE;
-        $this->session = Session::instance();
-        require Kohana::find_file('vendor', 'ExtDirect/API');
-        require Kohana::find_file('vendor', 'ExtDirect/CacheProvider');
-    }
-    
-    public function action_api($output = TRUE)
-    {
-        $config_defaults = Kohana::config('extdirect.defaults');
-        $config_api = Kohana::config('extdirect.api');
-        $cache_file = Kohana::find_file('cache', 'api_cache', 'txt');
-        
-        if($config_defaults['cache_enabled'])
-        {
-            $cache = new ExtDirect_CacheProvider($cache_file);
-        }
-        else
-        {
-            $cache = NULL;
-            // empty the file
-            if(0 != filesize($cache_file))
-            {
-                file_put_contents($cache_file, '');
-            }
-            
-        }
-        
-        // Remove "TestAction", "Profile" and "UserAction" from the API if examples_enabled is FALSE
-        if( ! $config_defaults['enable_examples'])
-        {
-            unset($config_api[0], $config_api[1], $config_api[2]);
-        }
+<?php defined('SYSPATH') or die('No direct access allowed.');
 
-        $api = new ExtDirect_API();
-        
-        $api->setRouterUrl(URL::base().'extdirect/router');
-        $api->setCacheProvider($cache);
-        $api->setNamespace($config_defaults['namespace']);
-        $api->setDescriptor($config_defaults['descriptor']);
-        $api->setDefaults(array(
-            'autoInclude' => $config_defaults['auto_include'],
-            'basePath' => $config_defaults['base_path']
-        ));
-        
-        $api->add($config_api);
-        
-        if($output)
-        {
-            $this->request->headers['Content-Type'] = 'text/javascript';
-            $api->output();
-        }
-        
-        $this->session->set('ext-direct-state', $api->getState());
-    }
-    
-    public function action_router()
-    {
-        $ext_state = $this->session->get('ext-direct-state');
-        if( ! isset($ext_state))
-        {
-            $this->action_api(FALSE);
-        }
-        
-        $api = new ExtDirect_API();
-        $api->setState($ext_state);
-        
-        require Kohana::find_file('vendor', 'ExtDirect/Router');
-        $router = new ExtDirect_Router($api);
-        $router->dispatch();
-        $router->getResponse(TRUE);
-    }
-    
-    // For the "Ext.Direct Generic Remoting" example so we can call a polling url within the module
-    public function action_poll()
-    {
-        $response = json_encode(array(
-           'type'=>'event',
-           'name'=>'message',
-           'data'=>'Successfully polled at: '. date('g:i:s a')
-        ));
-        
-        if (version_compare(Kohana::VERSION, '3.1', '<'))
-        {
-            // Kohaha 3.0.x request API
-            $this->request->response = $response;
-        }
-        else
-        {
-            // Kohaha 3.1.x request API
-            $this->response->body($response);
-        }
+class Controller_ExtDirect extends Controller {
+	public function retrieve_api($cached=true)
+	{
+		if(!($api = Cache::instance()->get('extdirect_cached_api')) || !$cached){
+			$search_dirs = array_merge(array(APPPATH),array_values(Kohana::modules()));
+			$direct_classes = Kohana::list_files('classes/extdirect',$search_dirs);
+			$reflected_actions = array();
+
+			foreach($direct_classes as $rel_path => $direct_class)
+			{
+				$declaredName = require_once($direct_class); //okay included it
+				if(is_string($declaredName) && //is string and startsWith class_prefix
+				   substr($declaredName,0,strlen($this->config['class_prefix'])) == $this->config['class_prefix'])
+				{
+					$class_subname = substr($declaredName,strlen($this->config['class_prefix']));
+				}else{
+					$class_subname = ucfirst(pathinfo($rel_path,PATHINFO_FILENAME));
+				}
+
+				try
+				{
+					$ref_class = new ReflectionClass($this->config['class_prefix'].$class_subname); //now get available actions
+				}
+				catch(Exception $ref_class){ continue; } // there's no such class
+
+				foreach($ref_class->getMethods() as $method)
+				{
+					$direct_method_prefix = $this->config['remotable_prefix'];
+					if(substr($method->getName(),0,strlen($direct_method_prefix)) == $direct_method_prefix) //startsWith direct_
+					{
+						$actual_name = substr($method->getName(),strlen($direct_method_prefix));
+						$reflected_actions[$class_subname][] = array(
+							'name'=>$actual_name,
+							'len'=>$method->getNumberOfRequiredParameters()
+						);
+					}
+				}
+
+			}
+
+			$api = array(
+				'url' => Url::site(Route::get('default')->uri(array('controller'=>'extdirect', 'action'=>'router'))),
+				'type' => 'remoting',
+				'actions' => $reflected_actions
+			);
+
+			Cache::instance()->set('extdirect_cached_api',$api);
+		}
+		return $api;
+	}
+
+
+    public function action_api()
+	{
+		$need_cached = Kohana::config('extdirect.force_cache')==null ?
+		  	(Kohana::$environment==Kohana::PRODUCTION) :
+		  	 Kohana::config('extdirect.force_cache');
+		
+		$this->response->body(
+			'Ext.ns(\'Ext.app\'); '.
+			'Ext.app.REMOTING_API = '.json_encode($this->retrieve_api($need_cached)).';'
+		);
     }
 
+	public function action_router()
+	{
+		if(isset($GLOBALS['HTTP_RAW_POST_DATA'])){
+			$data = json_decode($GLOBALS['HTTP_RAW_POST_DATA']);
+
+			if(!isset($data->tid) || !isset($data->action) ||!isset($data->method)) //all the params are here
+			{
+				die('Invalid request');
+			}
+			
+			$c = &$this->config;
+			try{
+				$class_name = preg_replace('/[^a-zA-Z0-9_]/','',$this->config['class_prefix'].$data->action);
+				$class = new $class_name(); //autoload will require it for us
+
+				$method_name = preg_replace('/[^a-zA-Z0-9_]/','',$this->config['remotable_prefix'].$data->method);
+
+				$params = isset($data->data) && is_array($data->data) ? $data->data : array();
+				$response = call_user_func_array(array($class, $method_name), $params);
+
+
+			}
+			catch(Exception $e)
+			{
+				$response = array(
+					$c['successProperty'] => false,
+					$c['messageProperty'] => $e->getMessage(),
+					$c['root'] => array()
+				);
+			}
+
+			$this->response->headers('Content-Type','text/javascript'); //ya i know not very Form-friendly...
+			//will need to introduce it's support
+
+			$this->response->body(json_encode(array(
+					'type' => 'rpc',
+					'tid' => $data->tid,
+					'action' => $data->action,
+					'method' => $data->method,
+					'result' => $response
+				))
+			);
+		}
+		else
+		{
+			die('Invalid request'); //no post
+		}
+	}
+	
+    protected $config;
+
+    public function __construct($request=null,$response=null)
+	{
+		if($request && $response){
+			parent::__construct($request,$response); //otherwise we're just ExtDirect_*
+		}
+
+        $this->config = Kohana::config('extdirect');
+    }
+
+    public function __call($name,$params)
+	{
+		$c = &$this->config;
+		
+		$actionPrefix = $this->config['remotable_prefix'];
+		if(substr($name,0,strlen($actionPrefix))!==$actionPrefix) //really first call
+		{
+			$retvar = call_user_func(array($this,$name),$params); //main data acquisition
+			return array(
+				$c['successProperty'] => true,
+				$c['messageProperty'] => 'ok',
+				$c['root'] => $retvar,
+			);
+		}
+		throw new Exception('No such method');
+
+    }
 }

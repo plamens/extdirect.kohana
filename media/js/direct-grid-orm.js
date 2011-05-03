@@ -105,8 +105,8 @@ UserGridUi = Ext.extend(Ext.grid.GridPanel, {
             store: this.store,
             displayInfo: true,
             displayMsg: 'Displaying Users {0} - {1} of {2}',
-            emptyMsg: "No users to display",
-        })
+            emptyMsg: "No users to display"
+        });
         UserGridUi.superclass.initComponent.call(this);
     }
 });
@@ -146,10 +146,10 @@ UserStore = Ext.extend(Ext.data.DirectStore, {
             reader: new UserReader(),
             writer: new UserWriter(),
             api: {
-                read: UserAction.get,
-                create: UserAction.add,
-                update: UserAction.update,
-                destroy: UserAction.delete
+                read: Useraction.get,
+                create: Useraction.add,
+                update: Useraction.update,
+                destroy: Useraction.delete
             },
             sortInfo: {
                 field: 'first',

@@ -15,20 +15,8 @@ class Controller_Examples extends Controller_Template
     public function before()
     {
         parent::before();
-        
-        // Get the current action
-        if (version_compare(Kohana::VERSION, '3.1', '<'))
-        {
-            // Kohaha 3.0.x request API
-            $media_action = $this->request->action === 'media';
-        }
-        else
-        {
-            // Kohaha 3.1.x request API
-            $media_action = $this->request->action() === 'media';
-        }   
-        
-        if ($media_action)
+
+        if ($this->request->action() === 'media')
 		{
 			// Do not template media files
 			$this->auto_render = FALSE;
@@ -107,29 +95,18 @@ class Controller_Examples extends Controller_Template
 
 		if ($file = Kohana::find_file('media', $file, $ext))
 		{
-			// Send the file content as the response
-            if (version_compare(Kohana::VERSION, '3.1', '<'))
-            {
-                // Kohaha 3.0.x request API
-                $this->request->response = file_get_contents($file);
-            }
-            else
-            {
-                // Kohaha 3.1.x request API
-                $this->response->body(file_get_contents($file));
-            }            
-			
+			$this->response->body(file_get_contents($file));
 		}
 		else
 		{
 			// Return a 404 status
-			$this->request->status = 404;
+			$this->request->status(404);
 		}
 
 		// Set the proper headers to allow caching
-		$this->request->headers['Content-Type']   = Kohana_File::mime_by_ext($ext);
-		$this->request->headers['Content-Length'] = filesize($file);
-		$this->request->headers['Last-Modified']  = date('r', filemtime($file));
+		$this->request->headers('Content-Type',Kohana_File::mime_by_ext($ext));
+		$this->request->headers('Content-Length',(string)filesize($file));
+		$this->request->headers('Last-Modified', date('r', filemtime($file)));
 	}
     
     public function after()
@@ -144,8 +121,8 @@ class Controller_Examples extends Controller_Template
     		);
         
             $scripts = array(
-                $media_route->uri(array('file' => 'js/ext-base.js')),
-                $media_route->uri(array('file' => 'js/ext-all.js')),
+                $media_route->uri(array('file' => 'js/ext-base-debug.js')),
+                $media_route->uri(array('file' => 'js/ext-all-debug.js')),
                 'extdirect/api',
             );
         
