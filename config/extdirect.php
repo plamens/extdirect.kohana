@@ -7,7 +7,7 @@
 		'totalProperty' =>  'total',
 		'successProperty' =>  'success',
 		'messageProperty' =>  'message',
-		'examples_enabled' => true,
+		'examples_enabled' => Kohana::$environment != Kohana::PRODUCTION,
 		'force_cache' => null //null means enabled if Kohana::PRODUCTION, otherwise forced to disabled
 	);
 ?>

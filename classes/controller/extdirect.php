@@ -11,10 +11,9 @@ class Controller_ExtDirect extends Controller {
 			foreach($direct_classes as $rel_path => $direct_class)
 			{
 				$declaredName = require_once($direct_class); //okay included it
-				if(is_string($declaredName) && //is string and startsWith class_prefix
-				   substr($declaredName,0,strlen($this->config['class_prefix'])) == $this->config['class_prefix'])
+				if(is_string($declaredName))
 				{
-					$class_subname = substr($declaredName,strlen($this->config['class_prefix']));
+					$class_subname = $declaredName;
 				}else{
 					$class_subname = ucfirst(pathinfo($rel_path,PATHINFO_FILENAME));
 				}
@@ -58,6 +57,7 @@ class Controller_ExtDirect extends Controller {
 		  	(Kohana::$environment==Kohana::PRODUCTION) :
 		  	 Kohana::config('extdirect.force_cache');
 		
+		$this->response->headers('Content-Type','text/javascript');
 		$this->response->body(
 			'Ext.ns(\'Ext.app\'); '.
 			'Ext.app.REMOTING_API = '.json_encode($this->retrieve_api($need_cached)).';'
@@ -112,6 +112,16 @@ class Controller_ExtDirect extends Controller {
 			die('Invalid request'); //no post
 		}
 	}
+	// For the "Ext.Direct Generic Remoting" example so we can call a polling url within the module
+    public function action_poll()
+    {
+        $response = json_encode(array(
+           'type'=>'event',
+           'name'=>'message',
+           'data'=>'Successfully polled at: '. date('g:i:s a')
+        ));
+		$this->response->body($response);
+    }
 	
     protected $config;
 

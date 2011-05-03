@@ -146,10 +146,10 @@ UserStore = Ext.extend(Ext.data.DirectStore, {
             reader: new UserReader(),
             writer: new UserWriter(),
             api: {
-                read: Useraction.get,
-                create: Useraction.add,
-                update: Useraction.update,
-                destroy: Useraction.delete
+                read: UserAction.get,
+                create: UserAction.add,
+                update: UserAction.update,
+                destroy: UserAction.delete
             },
             sortInfo: {
                 field: 'first',
