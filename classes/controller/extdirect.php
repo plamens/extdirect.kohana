@@ -84,6 +84,11 @@ class Controller_ExtDirect extends Controller {
 				$params = isset($data->data) && is_array($data->data) ? $data->data : array();
 				$response = call_user_func_array(array($class, $method_name), $params);
 
+				$response = array_merge(array(
+					$c['successProperty'] => true,
+					$c['messageProperty'] => 'ok',
+					$c['root'] => array()
+				),$response);
 
 			}
 			catch(Exception $e)
