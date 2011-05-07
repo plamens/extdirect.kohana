@@ -68,55 +68,64 @@ class Controller_ExtDirect extends Controller {
 	{
 		if(isset($GLOBALS['HTTP_RAW_POST_DATA'])){
 			$data = json_decode($GLOBALS['HTTP_RAW_POST_DATA']);
-
-			if(!isset($data->tid) || !isset($data->action) ||!isset($data->method)) //all the params are here
-			{
-				die('Invalid request');
-			}
-			
-			$c = &$this->config;
-			try{
-				$class_name = preg_replace('/[^a-zA-Z0-9_]/','',$this->config['class_prefix'].$data->action);
-				$class = new $class_name(); //autoload will require it for us
-
-				$method_name = preg_replace('/[^a-zA-Z0-9_]/','',$this->config['remotable_prefix'].$data->method);
-
-				$params = isset($data->data) && is_array($data->data) ? $data->data : array();
-				$response = call_user_func_array(array($class, $method_name), $params);
-
-				$response = array_merge(array(
-					$c['successProperty'] => true,
-					$c['messageProperty'] => 'ok',
-					$c['root'] => array()
-				),$response);
-
-			}
-			catch(Exception $e)
-			{
-				$response = array(
-					$c['successProperty'] => false,
-					$c['messageProperty'] => $e->getMessage(),
-					$c['root'] => array()
-				);
+			if(is_array($data)){
+				foreach($data as $dataItem){
+					$response[] = $this->rpc($dataItem);
+				}
+			}else{
+				$response = $this->rpc($data);
 			}
 
 			$this->response->headers('Content-Type','text/javascript'); //ya i know not very Form-friendly...
 			//will need to introduce it's support
-
-			$this->response->body(json_encode(array(
-					'type' => 'rpc',
-					'tid' => $data->tid,
-					'action' => $data->action,
-					'method' => $data->method,
-					'result' => $response
-				))
-			);
+			$this->response->body(json_encode($response));
 		}
 		else
 		{
 			die('Invalid request'); //no post
 		}
 	}
+	protected function rpc($data){
+		if(!isset($data->tid) || !isset($data->action) ||!isset($data->method)) //all the params are here
+		{
+			die('Invalid request');
+		}
+
+		$c = &$this->config;
+		try{
+			$class_name = preg_replace('/[^a-zA-Z0-9_]/','',$this->config['class_prefix'].$data->action);
+			$class = new $class_name(); //autoload will require it for us
+
+			$method_name = preg_replace('/[^a-zA-Z0-9_]/','',$this->config['remotable_prefix'].$data->method);
+
+			$params = isset($data->data) && is_array($data->data) ? $data->data : array();
+			$response = call_user_func_array(array($class, $method_name), $params);
+
+			$response = array_merge(array(
+				$c['successProperty'] => true,
+				$c['messageProperty'] => 'ok',
+				$c['root'] => array()
+			),$response);
+			
+			return array(
+				'type' => 'rpc',
+				'tid' => $data->tid,
+				'action' => $data->action,
+				'method' => $data->method,
+				'result' => $response
+			);
+		}
+		catch(Exception $e)
+		{
+			return array(
+				'type'=> 'exception',
+				'tid' => $data->tid,
+				$c['successProperty'] => false,
+				$c['messageProperty'] => $e->getMessage()
+			);
+		}
+	}
+
 	// For the "Ext.Direct Generic Remoting" example so we can call a polling url within the module
     public function action_poll()
     {
