@@ -1,5 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.');
-if(Kohana::config('extdirect.examples_enabled')){
+$config_defaults = Kohana::$config->load('extdirect.defaults');
+if($config_defaults['enable_examples'])
+{
 	// For our examples media files
     Route::set('extdirect/media', 'extdirect/media(/<file>)', array('file' => '.+'))
     	->defaults(array(
@@ -16,4 +18,8 @@ if(Kohana::config('extdirect.examples_enabled')){
     	));
 }
 
-?>
+Route::set('extdirectAPI', '(extdirect(/<action>))')
+	->defaults(array(
+        'controller' => 'extdirect',
+        'action'     => 'api',
+	));
